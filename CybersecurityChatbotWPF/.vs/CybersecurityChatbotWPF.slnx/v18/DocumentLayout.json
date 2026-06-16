@@ -3,11 +3,15 @@
   "WorkspaceRootPath": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|c:\\users\\lab_services_student\\desktop\\prog6221-part2-lee-sihjin\\cybersecuritychatbotwpf\\cybersecuritychatbotwpf\\activitylog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|solutionrelative:cybersecuritychatbotwpf\\activitylog.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|c:\\users\\lab_services_student\\desktop\\prog6221-part2-lee-sihjin\\cybersecuritychatbotwpf\\cybersecuritychatbotwpf\\databasehelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|solutionrelative:cybersecuritychatbotwpf\\databasehelper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|c:\\users\\lab_services_student\\desktop\\prog6221-part2-lee-sihjin\\cybersecuritychatbotwpf\\cybersecuritychatbotwpf\\quizservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\cybersecuritychatbotwpf\\quizservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{8E80CAB7-6615-44A9-8428-2BF83278E64E}|CybersecurityChatbotWPF\\CybersecurityChatbotWPF.csproj|solutionrelative:cybersecuritychatbotwpf\\quizservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
@@ -38,15 +42,24 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 0,
           "Children": [
             {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ActivityLog.cs",
+              "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\ActivityLog.cs",
+              "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\ActivityLog.cs",
+              "ToolTip": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\ActivityLog.cs",
+              "RelativeToolTip": "CybersecurityChatbotWPF\\ActivityLog.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAEkAAAAeAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-06-16T17:57:46.303Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "QuizService.cs",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\QuizService.cs",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\QuizService.cs",
@@ -54,12 +67,11 @@
               "RelativeToolTip": "CybersecurityChatbotWPF\\QuizService.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAMsAAAAYAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-06-16T17:49:33.789Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-06-16T17:49:33.789Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "DatabaseHelper.cs",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\DatabaseHelper.cs",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\DatabaseHelper.cs",
@@ -72,7 +84,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 5,
               "Title": "ChatbotService.cs",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\ChatbotService.cs",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\ChatbotService.cs",
@@ -84,7 +96,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 6,
               "Title": "AudioService.cs",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\AudioService.cs",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\AudioService.cs",
@@ -96,7 +108,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "MainWindow.xaml",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\MainWindow.xaml",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\MainWindow.xaml",
@@ -107,7 +119,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "MainWindow.xaml.cs",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\MainWindow.xaml.cs",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\MainWindow.xaml.cs",
@@ -119,7 +131,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 7,
               "Title": "App.config",
               "DocumentMoniker": "C:\\Users\\lab_services_student\\Desktop\\prog6221-part2-Lee-SihJin\\CybersecurityChatbotWPF\\CybersecurityChatbotWPF\\App.config",
               "RelativeDocumentMoniker": "CybersecurityChatbotWPF\\App.config",
