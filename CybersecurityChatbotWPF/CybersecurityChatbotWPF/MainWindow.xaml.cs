@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Media;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,11 +14,15 @@ namespace CybersecurityChatbotWPF
     {
         private ChatbotService _chatbotService;
         private AudioService _audioService;
+        private DatabaseHelper _dbHelper;
+        private QuizService _quizService;
+        private ActivityLog _activityLog;
         private Dictionary<string, List<string>> _conversationMemory;
         private string _currentTopic;
-        private int _currentTipIndex;
-        private List<string> _currentTips;
         private bool _waitingForName = true;
+        private bool _isQuizActive = false;
+        private bool _awaitingTaskConfirmation = false;
+        private TaskItem _pendingTask;
 
         public MainWindow()
         {
@@ -27,15 +30,19 @@ namespace CybersecurityChatbotWPF
             InitializeServices();
             PlayVoiceGreeting();
             ShowWelcomeMessage();
+
+            // Log application start
+            _activityLog.AddEntry("Application", "Cybersecurity Awareness Bot started");
         }
 
         private void InitializeServices()
         {
             _chatbotService = new ChatbotService();
             _audioService = new AudioService();
+            _dbHelper = new DatabaseHelper();
+            _quizService = new QuizService();
+            _activityLog = new ActivityLog();
             _conversationMemory = new Dictionary<string, List<string>>();
-            _currentTips = new List<string>();
-            _currentTipIndex = 0;
         }
 
         private void PlayVoiceGreeting()
@@ -55,8 +62,6 @@ namespace CybersecurityChatbotWPF
             await Task.Delay(500);
             AddBotMessage("Hello! Welcome to the Cybersecurity Awareness Bot! I'm here to help you stay safe online.", "Greeting");
             await Task.Delay(500);
-
-            // Ask for user name
             AddBotMessage("What's your name?", "Greeting");
             _waitingForName = true;
         }
@@ -121,7 +126,8 @@ namespace CybersecurityChatbotWPF
             {
                 Text = "Bot",
                 FontSize = 12,
-                Margin = new Thickness(0, 0, 5, 0)
+                Margin = new Thickness(0, 0, 5, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 200, 100))
             };
             var topicText = new TextBlock
             {
@@ -164,10 +170,7 @@ namespace CybersecurityChatbotWPF
         {
             var messageBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromRgb(50, 50, 50)),
-                CornerRadius = new CornerRadius(8),
-                Margin = new Thickness(30, 5, 30, 5),
-                Padding = new Thickness(10, 5, 10, 5)
+                Style = (Style)FindResource("SystemMessageStyle")
             };
 
             var messageText = new TextBlock
@@ -184,10 +187,310 @@ namespace CybersecurityChatbotWPF
             ScrollToBottom();
         }
 
+        private void AddQuizQuestion(QuizQuestion question, int questionNumber)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(40, 40, 60)),
+                CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(30, 8, 30, 8),
+                Padding = new Thickness(15, 10, 15, 10)
+            };
+
+            var stackPanel = new StackPanel();
+
+            // Question header
+            var header = new TextBlock
+            {
+                Text = $"Question {questionNumber}/{_quizService.TotalQuestions}: {question.Topic}",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 200, 100)),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stackPanel.Children.Add(header);
+
+            // Question text
+            var questionText = new TextBlock
+            {
+                Text = question.Question,
+                FontSize = 14,
+                Foreground = Brushes.White,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            stackPanel.Children.Add(questionText);
+
+            // Options
+            var optionsPanel = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
+            for (int i = 0; i < question.Options.Count; i++)
+            {
+                int optionIndex = i;
+                var optionButton = new Button
+                {
+                    Content = $"{Convert.ToChar(65 + i)}. {question.Options[i]}",
+                    Background = new SolidColorBrush(Color.FromRgb(50, 50, 70)),
+                    Foreground = Brushes.White,
+                    FontSize = 13,
+                    Padding = new Thickness(10, 6, 10, 6),
+                    Margin = new Thickness(0, 3, 0, 3),
+                    Cursor = Cursors.Hand,
+                    Tag = optionIndex,
+                    BorderThickness = new Thickness(1),
+                    BorderBrush = new SolidColorBrush(Color.FromRgb(70, 70, 90)),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    MinWidth = 300
+                };
+                optionButton.Click += (s, e) => HandleQuizAnswer(optionIndex);
+                optionsPanel.Children.Add(optionButton);
+            }
+            stackPanel.Children.Add(optionsPanel);
+
+            border.Child = stackPanel;
+            ChatStackPanel.Children.Add(border);
+            ScrollToBottom();
+        }
+
+        private async void HandleQuizAnswer(int selectedIndex)
+        {
+            if (!_isQuizActive) return;
+
+            var currentQuestion = _quizService.GetCurrentQuestion();
+            if (currentQuestion == null) return;
+
+            bool isCorrect = _quizService.CheckAnswer(selectedIndex, out bool correct, out string explanation);
+
+            // Show feedback
+            if (isCorrect)
+            {
+                AddSystemMessage($"Correct! {explanation}");
+                _activityLog.AddEntry("Quiz", $"Correct answer: {currentQuestion.Question}");
+            }
+            else
+            {
+                string correctAnswer = currentQuestion.Options[currentQuestion.CorrectAnswerIndex];
+                AddSystemMessage($"Incorrect. The correct answer was: {correctAnswer}");
+                AddSystemMessage($"{explanation}");
+                _activityLog.AddEntry("Quiz", $"Incorrect answer: {currentQuestion.Question}");
+            }
+
+            await Task.Delay(1000);
+
+            // Get next question
+            var nextQuestion = _quizService.GetNextQuestion();
+            if (nextQuestion != null)
+            {
+                AddQuizQuestion(nextQuestion, _quizService.CurrentQuestionIndex + 1);
+            }
+            else
+            {
+                // Quiz complete
+                _isQuizActive = false;
+                string feedback = _quizService.GetScoreFeedback();
+                AddSystemMessage($"Quiz Complete! Your score: {_quizService.Score}/{_quizService.TotalQuestions}");
+                AddBotMessage(feedback, "Quiz Complete");
+                _activityLog.AddEntry("Quiz", $"Completed with score {_quizService.Score}/{_quizService.TotalQuestions}");
+                _quizService.ResetQuiz();
+            }
+        }
+
+        private void AddTaskDisplay(List<TaskItem> tasks)
+        {
+            var border = new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(30, 40, 30)),
+                CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(30, 8, 30, 8),
+                Padding = new Thickness(15, 10, 15, 10)
+            };
+
+            var stackPanel = new StackPanel();
+
+            var header = new TextBlock
+            {
+                Text = "Your Tasks",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(100, 200, 100)),
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            stackPanel.Children.Add(header);
+
+            if (tasks.Count == 0)
+            {
+                var emptyText = new TextBlock
+                {
+                    Text = "No tasks yet. Add a task to get started!",
+                    FontSize = 13,
+                    Foreground = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                    FontStyle = FontStyles.Italic
+                };
+                stackPanel.Children.Add(emptyText);
+            }
+            else
+            {
+                foreach (var task in tasks)
+                {
+                    var taskPanel = new Border
+                    {
+                        Margin = new Thickness(0, 5, 0, 5),
+                        Background = task.IsCompleted ?
+                            new SolidColorBrush(Color.FromRgb(40, 50, 40)) :
+                            new SolidColorBrush(Color.FromRgb(45, 45, 45)),
+                        Padding = new Thickness(10, 5, 10, 5),
+                        CornerRadius = new CornerRadius(5)
+                    };
+
+                    var grid = new Grid();
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var taskText = new TextBlock
+                    {
+                        Text = task.DisplayText,
+                        FontSize = 13,
+                        Foreground = task.IsCompleted ?
+                            new SolidColorBrush(Color.FromRgb(150, 200, 150)) :
+                            Brushes.White,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 5, 10, 5)
+                    };
+                    Grid.SetColumn(taskText, 0);
+                    grid.Children.Add(taskText);
+
+                    var buttonPanel = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+
+                    if (!task.IsCompleted)
+                    {
+                        var completeButton = new Button
+                        {
+                            Content = "Done",
+                            Background = new SolidColorBrush(Color.FromRgb(0, 100, 0)),
+                            Foreground = Brushes.White,
+                            FontSize = 11,
+                            Padding = new Thickness(8, 4, 8, 4),
+                            Margin = new Thickness(0, 0, 5, 0),
+                            Cursor = Cursors.Hand,
+                            Tag = task.Id,
+                            BorderThickness = new Thickness(0)
+                        };
+                        completeButton.Click += (s, e) => MarkTaskComplete((int)((Button)s).Tag);
+                        buttonPanel.Children.Add(completeButton);
+                    }
+
+                    var deleteButton = new Button
+                    {
+                        Content = "Delete",
+                        Background = new SolidColorBrush(Color.FromRgb(100, 0, 0)),
+                        Foreground = Brushes.White,
+                        FontSize = 11,
+                        Padding = new Thickness(8, 4, 8, 4),
+                        Cursor = Cursors.Hand,
+                        Tag = task.Id,
+                        BorderThickness = new Thickness(0)
+                    };
+                    deleteButton.Click += (s, e) => DeleteTask((int)((Button)s).Tag);
+                    buttonPanel.Children.Add(deleteButton);
+
+                    Grid.SetColumn(buttonPanel, 1);
+                    grid.Children.Add(buttonPanel);
+
+                    taskPanel.Child = grid;
+                    stackPanel.Children.Add(taskPanel);
+                }
+            }
+
+            border.Child = stackPanel;
+            ChatStackPanel.Children.Add(border);
+            ScrollToBottom();
+        }
+
+        private async void MarkTaskComplete(int taskId)
+        {
+            if (_dbHelper.UpdateTaskStatus(taskId, true))
+            {
+                _activityLog.AddEntry("Task", $"Task {taskId} marked as complete");
+                AddSystemMessage("Task marked as complete!");
+                await Task.Delay(300);
+                ViewTasks_Click(null, null);
+            }
+        }
+
+        private async void DeleteTask(int taskId)
+        {
+            if (_dbHelper.DeleteTask(taskId))
+            {
+                _activityLog.AddEntry("Task", $"Task {taskId} deleted");
+                AddSystemMessage("Task deleted successfully!");
+                await Task.Delay(300);
+                ViewTasks_Click(null, null);
+            }
+        }
+
         private void ScrollToBottom()
         {
             ChatScrollViewer.ScrollToBottom();
         }
+
+        // FEATURE BUTTON HANDLERS 
+
+        private void ViewTasks_Click(object sender, RoutedEventArgs e)
+        {
+            var tasks = _dbHelper.GetTasks(false);
+            AddTaskDisplay(tasks);
+            _activityLog.AddEntry("View", "User viewed tasks");
+        }
+
+        private void StartQuiz_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isQuizActive) return;
+
+            _isQuizActive = true;
+            _quizService.ResetQuiz();
+            var firstQuestion = _quizService.StartQuiz();
+            AddSystemMessage("Starting Cybersecurity Quiz! Answer each question to test your knowledge.");
+            _activityLog.AddEntry("Quiz", "Quiz started");
+            AddQuizQuestion(firstQuestion, 1);
+        }
+
+        private void ShowActivityLog_Click(object sender, RoutedEventArgs e)
+        {
+            string logSummary = _activityLog.GetSummary(10);
+            AddBotMessage(logSummary, "Activity Log");
+            _activityLog.AddEntry("View", "User viewed activity log");
+        }
+
+        private void ShowHelp_Click(object sender, RoutedEventArgs e)
+        {
+            string helpMessage =
+                "**Cybersecurity Awareness Bot - Help**\n\n" +
+                "**Topics I can help with:**\n" +
+                "• Password safety & 2FA\n" +
+                "• Phishing & scam protection\n" +
+                "• Safe browsing & public Wi-Fi\n" +
+                "• Privacy & data protection\n\n" +
+                "**Commands you can use:**\n" +
+                "• 'add task [description]' - Add a cybersecurity task\n" +
+                "• 'remind me [task] in [X days]' - Set a reminder\n" +
+                "• 'view tasks' - Show all tasks\n" +
+                "• 'quiz' - Start the cybersecurity quiz\n" +
+                "• 'activity log' - View recent actions\n\n" +
+                "**Try asking:**\n" +
+                "• 'How do I create strong passwords?'\n" +
+                "• 'What is phishing?'\n" +
+                "• 'Tips for safe browsing'\n" +
+                "• 'How to protect my privacy?'";
+
+            AddBotMessage(helpMessage, "Help");
+            _activityLog.AddEntry("Help", "User viewed help menu");
+        }
+
+        // ===== SEND BUTTON AND INPUT HANDLING =====
 
         private async void SendButton_Click(object sender, RoutedEventArgs e)
         {
@@ -202,6 +505,8 @@ namespace CybersecurityChatbotWPF
                 await ProcessUserInput();
             }
         }
+
+        // MAIN PROCESSING METHOD 
 
         private async Task ProcessUserInput()
         {
@@ -225,64 +530,174 @@ namespace CybersecurityChatbotWPF
                 await Task.Delay(500);
                 AddBotMessage($"Nice to meet you, {userInput}! I'm your Cybersecurity Awareness Assistant.", "Greeting");
                 await Task.Delay(500);
-                AddBotMessage("I can help you with password safety, phishing protection, safe browsing, and privacy tips. What would you like to learn about today?", "Help");
+                AddBotMessage("I can help with passwords, phishing, safe browsing, and privacy. I also have a Task Assistant and Quiz! Type 'help' to see what I can do.", "Help");
+                _activityLog.AddEntry("User", $"User registered: {userInput}");
+                return;
+            }
+
+            // Check for quiz answers when quiz is active
+            if (_isQuizActive)
+            {
+                // Let the quiz handle it through button clicks
                 return;
             }
 
             // Show loading
             LoadingOverlay.Visibility = Visibility.Visible;
+            await Task.Delay(300);
 
-            // Simulate thinking delay
-            await Task.Delay(500);
+            // Check for commands using NLP
+            var parsedAction = _chatbotService.ParseUserIntent(userInput);
 
-            // Get bot response
-            var response = await Task.Run(() => _chatbotService.GetResponse(userInput));
-
-            // Handle sentiment detection
-            string sentiment = DetectSentiment(userInput);
-            string finalResponse = AdjustResponseForSentiment(response.Message, sentiment);
-
-            // Handle follow-up questions
-            if (IsFollowUpQuestion(userInput))
+            if (parsedAction.Action == "AddTask" || parsedAction.Action == "AddReminder")
             {
-                finalResponse = HandleFollowUp(userInput, finalResponse);
+                await HandleTaskCommand(parsedAction, userInput);
             }
-
-            // Store in memory
-            StoreInMemory(userInput, response.Topic);
-
-            // Check for recall requests
-            if (userInput.ToLower().Contains("remember") || userInput.ToLower().Contains("recall") || userInput.ToLower().Contains("what did i"))
+            else if (parsedAction.Action == "ViewTasks")
             {
-                string recalledInfo = RecallInformation(userInput);
-                if (!string.IsNullOrEmpty(recalledInfo))
+                ViewTasks_Click(null, null);
+            }
+            else if (parsedAction.Action == "StartQuiz")
+            {
+                StartQuiz_Click(null, null);
+            }
+            else if (parsedAction.Action == "ShowLog")
+            {
+                ShowActivityLog_Click(null, null);
+            }
+            else if (parsedAction.Action == "CompleteTask")
+            {
+                // Try to find and complete the task
+                var tasks = _dbHelper.GetTasks(false);
+                var matchingTask = tasks.FirstOrDefault(t =>
+                    t.Title.ToLower().Contains(parsedAction.Subject.ToLower()) ||
+                    parsedAction.Subject.ToLower().Contains(t.Title.ToLower()));
+
+                if (matchingTask != null)
                 {
-                    finalResponse = recalledInfo;
+                    MarkTaskComplete(matchingTask.Id);
+                }
+                else
+                {
+                    AddBotMessage($"I couldn't find a task matching '{parsedAction.Subject}'. Use 'view tasks' to see your tasks.", "Task");
+                }
+            }
+            else if (parsedAction.Action == "DeleteTask")
+            {
+                var tasks = _dbHelper.GetTasks(true);
+                var matchingTask = tasks.FirstOrDefault(t =>
+                    t.Title.ToLower().Contains(parsedAction.Subject.ToLower()) ||
+                    parsedAction.Subject.ToLower().Contains(t.Title.ToLower()));
+
+                if (matchingTask != null)
+                {
+                    DeleteTask(matchingTask.Id);
+                }
+                else
+                {
+                    AddBotMessage($"I couldn't find a task matching '{parsedAction.Subject}'. Use 'view tasks' to see your tasks.", "Task");
+                }
+            }
+            else
+            {
+                // Regular chatbot response
+                var response = await Task.Run(() => _chatbotService.GetResponse(userInput));
+
+                // Detect sentiment and adjust response
+                string sentiment = DetectSentiment(userInput);
+                string finalResponse = AdjustResponseForSentiment(response.Message, sentiment);
+
+                // Handle follow-up questions
+                if (IsFollowUpQuestion(userInput))
+                {
+                    finalResponse = HandleFollowUp(userInput, finalResponse);
+                }
+
+                // Store in memory
+                StoreInMemory(userInput, response.Topic);
+
+                // Check for recall requests
+                if (userInput.ToLower().Contains("remember") || userInput.ToLower().Contains("recall") ||
+                    userInput.ToLower().Contains("what did i"))
+                {
+                    string recalledInfo = RecallInformation(userInput);
+                    if (!string.IsNullOrEmpty(recalledInfo))
+                    {
+                        finalResponse = recalledInfo;
+                    }
+                }
+
+                // Check for interest storage
+                if (userInput.ToLower().Contains("interested in") || userInput.ToLower().Contains("i like"))
+                {
+                    StoreUserInterest(userInput);
+                }
+
+                // Add bot message
+                AddBotMessage(finalResponse, response.Topic);
+
+                // Store conversation history
+                StoreConversationHistory(userInput, finalResponse);
+
+                // Handle exit command
+                if (response.Topic == "Exit")
+                {
+                    await Task.Delay(1000);
+                    AddBotMessage("Thank you for using the Cybersecurity Awareness Bot! Stay safe online!", "Farewell");
+                    _activityLog.AddEntry("Application", "User session ended");
                 }
             }
 
-            // Check for interest storage
-            if (userInput.ToLower().Contains("interested in") || userInput.ToLower().Contains("i like"))
-            {
-                StoreUserInterest(userInput);
-            }
-
-            // Add bot message
-            AddBotMessage(finalResponse, response.Topic);
-
-            // Store conversation history
-            StoreConversationHistory(userInput, finalResponse);
-
             // Hide loading
             LoadingOverlay.Visibility = Visibility.Collapsed;
+        }
 
-            // Handle exit command
-            if (response.Topic == "Exit")
+        // TASK COMMAND HANDLER 
+
+        private async Task HandleTaskCommand(TaskAction action, string userInput)
+        {
+            if (action.Action == "AddTask")
             {
-                await Task.Delay(1000);
-                AddBotMessage("Thank you for using the Cybersecurity Awareness Bot! Stay safe online!", "Farewell");
+                string title = action.Subject ?? "New Task";
+                string description = userInput;
+
+                // Check if user wants a reminder
+                if (userInput.ToLower().Contains("remind") || userInput.ToLower().Contains("reminder"))
+                {
+                    DateTime? reminderDate = action.ReminderDate ?? DateTime.Now.AddDays(3);
+                    int taskId = _dbHelper.AddTask(title, description, reminderDate);
+                    if (taskId > 0)
+                    {
+                        _activityLog.AddEntry("Task", $"Added task: {title} (Reminder: {reminderDate:yyyy-MM-dd})");
+                        AddBotMessage($"Task added: '{title}' with reminder set for {reminderDate:yyyy-MM-dd}.", "Task");
+                    }
+                }
+                else
+                {
+                    int taskId = _dbHelper.AddTask(title, description, null);
+                    if (taskId > 0)
+                    {
+                        _activityLog.AddEntry("Task", $"Added task: {title}");
+                        AddBotMessage($"Task added: '{title}'. Would you like to set a reminder? (say 'yes' or 'no')", "Task");
+                        _awaitingTaskConfirmation = true;
+                        _pendingTask = new TaskItem { Id = taskId, Title = title, Description = description };
+                    }
+                }
+            }
+            else if (action.Action == "AddReminder")
+            {
+                string title = action.Subject ?? "Reminder";
+                DateTime? reminderDate = action.ReminderDate ?? DateTime.Now.AddDays(3);
+                int taskId = _dbHelper.AddTask(title, $"Reminder: {userInput}", reminderDate);
+                if (taskId > 0)
+                {
+                    _activityLog.AddEntry("Reminder", $"Set reminder: {title} for {reminderDate:yyyy-MM-dd}");
+                    AddBotMessage($"Reminder set for '{title}' on {reminderDate:yyyy-MM-dd}.", "Reminder");
+                }
             }
         }
+
+        // SENTIMENT DETECTION METHODS 
 
         private string DetectSentiment(string input)
         {
@@ -341,6 +756,8 @@ namespace CybersecurityChatbotWPF
             }
         }
 
+        // FOLLOW-UP HANDLING 
+
         private bool IsFollowUpQuestion(string input)
         {
             string lowerInput = input.ToLower();
@@ -372,6 +789,8 @@ namespace CybersecurityChatbotWPF
 
             return currentResponse;
         }
+
+        // ===== MEMORY AND RECALL METHODS =====
 
         private void StoreInMemory(string userInput, string topic)
         {
