@@ -124,7 +124,7 @@ namespace CybersecurityChatbotWPF
             var headerPanel = new StackPanel { Orientation = Orientation.Horizontal };
             var botIcon = new TextBlock
             {
-                Text = "Bot",
+                Text = "BOT",
                 FontSize = 12,
                 Margin = new Thickness(0, 0, 5, 0),
                 Foreground = new SolidColorBrush(Color.FromRgb(100, 200, 100))
