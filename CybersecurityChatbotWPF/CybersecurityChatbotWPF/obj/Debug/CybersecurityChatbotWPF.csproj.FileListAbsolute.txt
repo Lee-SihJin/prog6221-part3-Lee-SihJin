@@ -15,3 +15,4 @@ C:\Users\lab_services_student\Desktop\prog6221-part2-Lee-SihJin\CybersecurityCha
 C:\Users\lab_services_student\Desktop\prog6221-part2-Lee-SihJin\CybersecurityChatbotWPF\CybersecurityChatbotWPF\obj\Debug\CybersecurityChatbotWPF_Content.g.cs
 C:\Users\lab_services_student\Desktop\prog6221-part2-Lee-SihJin\CybersecurityChatbotWPF\CybersecurityChatbotWPF\bin\Debug\System.Data.SQLite.dll
 C:\Users\lab_services_student\Desktop\prog6221-part2-Lee-SihJin\CybersecurityChatbotWPF\CybersecurityChatbotWPF\obj\Debug\Cybersec.93D07A33.Up2Date
+C:\Users\lab_services_student\Desktop\prog6221-part2-Lee-SihJin\CybersecurityChatbotWPF\CybersecurityChatbotWPF\bin\Debug\System.Data.SQLite.xml

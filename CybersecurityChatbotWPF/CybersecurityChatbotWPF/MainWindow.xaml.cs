@@ -31,7 +31,6 @@ namespace CybersecurityChatbotWPF
             PlayVoiceGreeting();
             ShowWelcomeMessage();
 
-            // Log application start
             _activityLog.AddEntry("Application", "Cybersecurity Awareness Bot started");
         }
 
@@ -199,7 +198,6 @@ namespace CybersecurityChatbotWPF
 
             var stackPanel = new StackPanel();
 
-            // Question header
             var header = new TextBlock
             {
                 Text = $"Question {questionNumber}/{_quizService.TotalQuestions}: {question.Topic}",
@@ -210,7 +208,6 @@ namespace CybersecurityChatbotWPF
             };
             stackPanel.Children.Add(header);
 
-            // Question text
             var questionText = new TextBlock
             {
                 Text = question.Question,
@@ -221,7 +218,6 @@ namespace CybersecurityChatbotWPF
             };
             stackPanel.Children.Add(questionText);
 
-            // Options
             var optionsPanel = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
             for (int i = 0; i < question.Options.Count; i++)
             {
@@ -260,7 +256,6 @@ namespace CybersecurityChatbotWPF
 
             bool isCorrect = _quizService.CheckAnswer(selectedIndex, out bool correct, out string explanation);
 
-            // Show feedback
             if (isCorrect)
             {
                 AddSystemMessage($"Correct! {explanation}");
@@ -276,7 +271,6 @@ namespace CybersecurityChatbotWPF
 
             await Task.Delay(1000);
 
-            // Get next question
             var nextQuestion = _quizService.GetNextQuestion();
             if (nextQuestion != null)
             {
@@ -284,7 +278,6 @@ namespace CybersecurityChatbotWPF
             }
             else
             {
-                // Quiz complete
                 _isQuizActive = false;
                 string feedback = _quizService.GetScoreFeedback();
                 AddSystemMessage($"Quiz Complete! Your score: {_quizService.Score}/{_quizService.TotalQuestions}");
@@ -437,7 +430,7 @@ namespace CybersecurityChatbotWPF
             ChatScrollViewer.ScrollToBottom();
         }
 
-        // FEATURE BUTTON HANDLERS 
+        // FEATURE BUTTON HANDLERS
 
         private void ViewTasks_Click(object sender, RoutedEventArgs e)
         {
@@ -506,7 +499,7 @@ namespace CybersecurityChatbotWPF
             }
         }
 
-        // MAIN PROCESSING METHOD 
+        // ===== MAIN PROCESSING METHOD =====
 
         private async Task ProcessUserInput()
         {
@@ -514,11 +507,53 @@ namespace CybersecurityChatbotWPF
             if (string.IsNullOrWhiteSpace(userInput))
                 return;
 
-            // Clear input box
             MessageTextBox.Text = "";
-
-            // Add user message to chat
             AddUserMessage(userInput);
+
+            System.Diagnostics.Debug.WriteLine($"===== PROCESSING: '{userInput}' =====");
+            System.Diagnostics.Debug.WriteLine($"AWAITING TASK CONFIRMATION: {_awaitingTaskConfirmation}");
+
+            // ===== HANDLE TASK CONFIRMATION (yes/no for reminder) =====
+            if (_awaitingTaskConfirmation && _pendingTask != null)
+            {
+                string lowerInput = userInput.ToLower();
+
+                if (lowerInput == "yes" || lowerInput == "y" || lowerInput == "sure" ||
+                    lowerInput == "ok" || lowerInput == "okay" || lowerInput == "yeah")
+                {
+                    // User wants a reminder
+                    DateTime reminderDate = DateTime.Now.AddDays(3);
+                    _dbHelper.AddTask(_pendingTask.Title, _pendingTask.Description, reminderDate);
+                    _dbHelper.DeleteTask(_pendingTask.Id); // Delete the old one without reminder
+
+                    _activityLog.AddEntry("Task", $"Added task with reminder: {_pendingTask.Title}");
+                    AddBotMessage($"✅ Task added: '{_pendingTask.Title}' with reminder set for {reminderDate:yyyy-MM-dd}.", "Task");
+
+                    _awaitingTaskConfirmation = false;
+                    _pendingTask = null;
+                    LoadingOverlay.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                else if (lowerInput == "no" || lowerInput == "n" || lowerInput == "nah" ||
+                         lowerInput == "never" || lowerInput == "not really")
+                {
+                    // User doesn't want a reminder
+                    _activityLog.AddEntry("Task", $"Added task without reminder: {_pendingTask.Title}");
+                    AddBotMessage($"✅ Task added: '{_pendingTask.Title}' (no reminder set).", "Task");
+
+                    _awaitingTaskConfirmation = false;
+                    _pendingTask = null;
+                    LoadingOverlay.Visibility = Visibility.Collapsed;
+                    return;
+                }
+                else
+                {
+                    // User said something else - ask again
+                    AddBotMessage("I didn't understand. Would you like to set a reminder for this task? (say 'yes' or 'no')", "Task");
+                    LoadingOverlay.Visibility = Visibility.Collapsed;
+                    return;
+                }
+            }
 
             // Handle name input if waiting for name
             if (_waitingForName)
@@ -526,7 +561,6 @@ namespace CybersecurityChatbotWPF
                 _chatbotService.SetUserName(userInput);
                 _waitingForName = false;
 
-                // Personalized welcome
                 await Task.Delay(500);
                 AddBotMessage($"Nice to meet you, {userInput}! I'm your Cybersecurity Awareness Assistant.", "Greeting");
                 await Task.Delay(500);
@@ -538,16 +572,16 @@ namespace CybersecurityChatbotWPF
             // Check for quiz answers when quiz is active
             if (_isQuizActive)
             {
-                // Let the quiz handle it through button clicks
                 return;
             }
 
-            // Show loading
             LoadingOverlay.Visibility = Visibility.Visible;
             await Task.Delay(300);
 
             // Check for commands using NLP
             var parsedAction = _chatbotService.ParseUserIntent(userInput);
+
+            System.Diagnostics.Debug.WriteLine($"PARSED ACTION: {parsedAction.Action}, Subject: '{parsedAction.Subject}'");
 
             if (parsedAction.Action == "AddTask" || parsedAction.Action == "AddReminder")
             {
@@ -567,7 +601,6 @@ namespace CybersecurityChatbotWPF
             }
             else if (parsedAction.Action == "CompleteTask")
             {
-                // Try to find and complete the task
                 var tasks = _dbHelper.GetTasks(false);
                 var matchingTask = tasks.FirstOrDefault(t =>
                     t.Title.ToLower().Contains(parsedAction.Subject.ToLower()) ||
@@ -603,20 +636,16 @@ namespace CybersecurityChatbotWPF
                 // Regular chatbot response
                 var response = await Task.Run(() => _chatbotService.GetResponse(userInput));
 
-                // Detect sentiment and adjust response
                 string sentiment = DetectSentiment(userInput);
                 string finalResponse = AdjustResponseForSentiment(response.Message, sentiment);
 
-                // Handle follow-up questions
                 if (IsFollowUpQuestion(userInput))
                 {
                     finalResponse = HandleFollowUp(userInput, finalResponse);
                 }
 
-                // Store in memory
                 StoreInMemory(userInput, response.Topic);
 
-                // Check for recall requests
                 if (userInput.ToLower().Contains("remember") || userInput.ToLower().Contains("recall") ||
                     userInput.ToLower().Contains("what did i"))
                 {
@@ -627,19 +656,14 @@ namespace CybersecurityChatbotWPF
                     }
                 }
 
-                // Check for interest storage
                 if (userInput.ToLower().Contains("interested in") || userInput.ToLower().Contains("i like"))
                 {
                     StoreUserInterest(userInput);
                 }
 
-                // Add bot message
                 AddBotMessage(finalResponse, response.Topic);
-
-                // Store conversation history
                 StoreConversationHistory(userInput, finalResponse);
 
-                // Handle exit command
                 if (response.Topic == "Exit")
                 {
                     await Task.Delay(1000);
@@ -648,40 +672,40 @@ namespace CybersecurityChatbotWPF
                 }
             }
 
-            // Hide loading
             LoadingOverlay.Visibility = Visibility.Collapsed;
         }
 
-        // TASK COMMAND HANDLER 
+        // ===== TASK COMMAND HANDLER =====
 
         private async Task HandleTaskCommand(TaskAction action, string userInput)
         {
+            System.Diagnostics.Debug.WriteLine($"TASK COMMAND: Action={action.Action}, Subject='{action.Subject}'");
+
             if (action.Action == "AddTask")
             {
                 string title = action.Subject ?? "New Task";
                 string description = userInput;
 
-                // Check if user wants a reminder
-                if (userInput.ToLower().Contains("remind") || userInput.ToLower().Contains("reminder"))
+                try
                 {
-                    DateTime? reminderDate = action.ReminderDate ?? DateTime.Now.AddDays(3);
-                    int taskId = _dbHelper.AddTask(title, description, reminderDate);
-                    if (taskId > 0)
+                    // Store the task with a flag that reminder is pending
+                    // We'll add it to database only when user confirms
+                    _pendingTask = new TaskItem
                     {
-                        _activityLog.AddEntry("Task", $"Added task: {title} (Reminder: {reminderDate:yyyy-MM-dd})");
-                        AddBotMessage($"Task added: '{title}' with reminder set for {reminderDate:yyyy-MM-dd}.", "Task");
-                    }
+                        Id = 0,
+                        Title = title,
+                        Description = description
+                    };
+                    _awaitingTaskConfirmation = true;
+
+                    AddBotMessage($"✅ Task ready: '{title}'. Would you like to set a reminder? (say 'yes' or 'no')", "Task");
+
+                    System.Diagnostics.Debug.WriteLine($"Task pending confirmation: {title}");
                 }
-                else
+                catch (Exception ex)
                 {
-                    int taskId = _dbHelper.AddTask(title, description, null);
-                    if (taskId > 0)
-                    {
-                        _activityLog.AddEntry("Task", $"Added task: {title}");
-                        AddBotMessage($"Task added: '{title}'. Would you like to set a reminder? (say 'yes' or 'no')", "Task");
-                        _awaitingTaskConfirmation = true;
-                        _pendingTask = new TaskItem { Id = taskId, Title = title, Description = description };
-                    }
+                    AddBotMessage($"❌ Error: {ex.Message}", "Error");
+                    System.Diagnostics.Debug.WriteLine($"❌ Exception: {ex.Message}");
                 }
             }
             else if (action.Action == "AddReminder")
@@ -692,12 +716,18 @@ namespace CybersecurityChatbotWPF
                 if (taskId > 0)
                 {
                     _activityLog.AddEntry("Reminder", $"Set reminder: {title} for {reminderDate:yyyy-MM-dd}");
-                    AddBotMessage($"Reminder set for '{title}' on {reminderDate:yyyy-MM-dd}.", "Reminder");
+                    AddBotMessage($"✅ Reminder set for '{title}' on {reminderDate:yyyy-MM-dd}.", "Reminder");
+                    System.Diagnostics.Debug.WriteLine($"✅ Reminder added successfully! ID: {taskId}");
+                }
+                else
+                {
+                    AddBotMessage($"❌ Failed to set reminder. Please try again.", "Error");
+                    System.Diagnostics.Debug.WriteLine($"❌ Failed to add reminder!");
                 }
             }
         }
 
-        // SENTIMENT DETECTION METHODS 
+        // ===== SENTIMENT DETECTION METHODS =====
 
         private string DetectSentiment(string input)
         {
@@ -756,7 +786,7 @@ namespace CybersecurityChatbotWPF
             }
         }
 
-        // FOLLOW-UP HANDLING 
+        // ===== FOLLOW-UP HANDLING =====
 
         private bool IsFollowUpQuestion(string input)
         {
@@ -805,7 +835,6 @@ namespace CybersecurityChatbotWPF
 
                 _conversationMemory[topic].Add(userInput);
 
-                // Keep only last 10 entries per topic to manage memory
                 if (_conversationMemory[topic].Count > 10)
                 {
                     _conversationMemory[topic].RemoveAt(0);
@@ -843,14 +872,12 @@ namespace CybersecurityChatbotWPF
         {
             string lowerInput = userInput.ToLower();
 
-            // Recall user interests
             string interests = _chatbotService.GetUserInterests();
             if (!string.IsNullOrEmpty(interests) && (lowerInput.Contains("interest") || lowerInput.Contains("like")))
             {
                 return $"I remember you're interested in {interests}. Would you like me to share more tips about these topics?";
             }
 
-            // Recall conversation topics
             foreach (var topic in _conversationMemory.Keys)
             {
                 if (lowerInput.Contains(topic.ToLower()))
@@ -859,7 +886,6 @@ namespace CybersecurityChatbotWPF
                 }
             }
 
-            // General recall
             if (_conversationMemory.Count > 0 && !string.IsNullOrEmpty(_currentTopic))
             {
                 string userName = _chatbotService.GetUserName();
@@ -875,7 +901,6 @@ namespace CybersecurityChatbotWPF
 
         private void StoreConversationHistory(string userInput, string botResponse)
         {
-            // Store for future recall (max 10 items per topic)
             if (!string.IsNullOrEmpty(_currentTopic) && _currentTopic != "General" && _currentTopic != "Invalid Input")
             {
                 if (!_conversationMemory.ContainsKey(_currentTopic))
@@ -886,7 +911,6 @@ namespace CybersecurityChatbotWPF
                 _conversationMemory[_currentTopic].Add($"User: {userInput}");
                 _conversationMemory[_currentTopic].Add($"Bot: {botResponse}");
 
-                // Keep only last 20 entries per topic
                 if (_conversationMemory[_currentTopic].Count > 20)
                 {
                     _conversationMemory[_currentTopic].RemoveRange(0, 10);

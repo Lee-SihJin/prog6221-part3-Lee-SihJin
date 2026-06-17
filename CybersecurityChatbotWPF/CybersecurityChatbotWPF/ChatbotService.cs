@@ -165,20 +165,17 @@ namespace CybersecurityChatbotWPF
 
             string lowerInput = userInput.ToLower().Trim();
 
-            // Check for stored interests and personalize
             string interests = GetUserInterests();
             if (!string.IsNullOrEmpty(interests) && (lowerInput.Contains("for me") || lowerInput.Contains("my interest")))
             {
                 return new ChatResponse($"Based on your interest in {interests}, would you like me to share more tips about these topics?", "Personalized");
             }
 
-            // Check for name storage
             if (!string.IsNullOrEmpty(_userName) && !_userProfile.ContainsKey("user_info"))
             {
                 SetUserName(_userName);
             }
 
-            // Find matching intent
             string intent = "General";
             foreach (var kvp in _intentKeywords)
             {
@@ -189,13 +186,11 @@ namespace CybersecurityChatbotWPF
                 }
             }
 
-            // Handle goodbye
             if (intent == "Goodbye")
             {
                 return new ChatResponse($"Goodbye, {_userName ?? "friend"}! Remember: Stay vigilant, stay secure! Come back anytime you need cybersecurity tips.", "Exit");
             }
 
-            // Get response based on intent
             string responseMessage;
             if (_responses.ContainsKey(intent))
             {
@@ -207,17 +202,14 @@ namespace CybersecurityChatbotWPF
                 responseMessage = GetDefaultResponse();
             }
 
-            // Personalize with user name if available and appropriate
             if (!string.IsNullOrEmpty(_userName) && intent != "Greeting" && !responseMessage.Contains(_userName))
             {
-                // Only personalize some responses to keep it natural
                 if (_random.Next(3) == 0)
                 {
                     responseMessage = $"{_userName}, {responseMessage.ToLower()}";
                 }
             }
 
-            // Store conversation topic as interest if relevant
             if (intent != "General" && intent != "Invalid Input" && intent != "Greeting")
             {
                 StoreUserInterest(intent.ToLower());
@@ -242,98 +234,150 @@ namespace CybersecurityChatbotWPF
                 "I'm not sure about that. Could you ask me about passwords, phishing, safe browsing, or privacy?",
                 "Interesting question! I specialize in cybersecurity topics like password safety, phishing protection, and secure browsing. Try asking about one of those!",
                 "I didn't quite understand that. Try asking: 'How to create strong passwords?' or 'What is phishing?'",
-                $"I'm here to help with cybersecurity! Would you like tips on passwords, phishing, safe browsing, or privacy?"
+                "I'm here to help with cybersecurity! Would you like tips on passwords, phishing, safe browsing, or privacy?"
             };
 
             return defaultResponses[_random.Next(defaultResponses.Length)];
         }
 
-        // ===== NLP METHODS FOR PART 3 =====
+        // ===== NLP METHODS =====
 
         public TaskAction ParseUserIntent(string input)
         {
             string lowerInput = input.ToLower().Trim();
             var action = new TaskAction();
 
-            // Check for task-related commands
+            // DEBUG: Log the input
+            System.Diagnostics.Debug.WriteLine($"[NLP] ===== Parsing: '{lowerInput}' ===== ");
+
+            // Check for "add task" - look for it anywhere in the string
             if (lowerInput.Contains("add task") || lowerInput.Contains("new task") ||
                 lowerInput.Contains("create task") || lowerInput.Contains("add a task"))
             {
                 action.Action = "AddTask";
-                action.Subject = ExtractSubject(input);
-            }
-            else if (lowerInput.Contains("remind") || lowerInput.Contains("reminder") ||
-                     lowerInput.Contains("remind me"))
-            {
-                action.Action = "AddReminder";
-                action.Subject = ExtractSubject(input);
-                action.ReminderDate = ExtractDate(input);
-            }
-            else if (lowerInput.Contains("show task") || lowerInput.Contains("list task") ||
-                     lowerInput.Contains("view task") || lowerInput.Contains("tasks"))
-            {
-                action.Action = "ViewTasks";
-            }
-            else if (lowerInput.Contains("complete") || lowerInput.Contains("done"))
-            {
-                action.Action = "CompleteTask";
-                action.Subject = ExtractSubject(input);
-            }
-            else if (lowerInput.Contains("delete task") || lowerInput.Contains("remove task"))
-            {
-                action.Action = "DeleteTask";
-                action.Subject = ExtractSubject(input);
-            }
-            else if (lowerInput.Contains("quiz") || lowerInput.Contains("game"))
-            {
-                action.Action = "StartQuiz";
-            }
-            else if (lowerInput.Contains("log") || lowerInput.Contains("activity") ||
-                     lowerInput.Contains("what have you done"))
-            {
-                action.Action = "ShowLog";
+                action.Subject = ExtractSubjectSimple(input);
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ AddTask detected! Subject: '{action.Subject}'");
+                return action;
             }
 
+            // Check for "remind me"
+            if (lowerInput.Contains("remind me") || lowerInput.Contains("reminder"))
+            {
+                action.Action = "AddReminder";
+                action.Subject = ExtractSubjectSimple(input);
+                action.ReminderDate = ExtractDateSimple(input);
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ Reminder detected! Subject: '{action.Subject}', Date: {action.ReminderDate}");
+                return action;
+            }
+
+            // Check for "view tasks" or just "tasks"
+            if (lowerInput.Contains("view tasks") || lowerInput.Contains("list tasks") ||
+                lowerInput.Contains("show tasks") || lowerInput == "tasks")
+            {
+                action.Action = "ViewTasks";
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ ViewTasks detected!");
+                return action;
+            }
+
+            // Check for "quiz"
+            if (lowerInput.Contains("quiz") || lowerInput.Contains("game") || lowerInput == "start quiz")
+            {
+                action.Action = "StartQuiz";
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ StartQuiz detected!");
+                return action;
+            }
+
+            // Check for "log" or "activity"
+            if (lowerInput.Contains("log") || lowerInput.Contains("activity") ||
+                lowerInput.Contains("what have you done") || lowerInput.Contains("what did you do"))
+            {
+                action.Action = "ShowLog";
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ ShowLog detected!");
+                return action;
+            }
+
+            // Check for "complete"
+            if (lowerInput.StartsWith("complete ") || lowerInput.StartsWith("done "))
+            {
+                action.Action = "CompleteTask";
+                action.Subject = ExtractSubjectSimple(input);
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ CompleteTask detected! Subject: '{action.Subject}'");
+                return action;
+            }
+
+            // Check for "delete task"
+            if (lowerInput.Contains("delete task") || lowerInput.Contains("remove task"))
+            {
+                action.Action = "DeleteTask";
+                action.Subject = ExtractSubjectSimple(input);
+                System.Diagnostics.Debug.WriteLine($"[NLP] ✅ DeleteTask detected! Subject: '{action.Subject}'");
+                return action;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[NLP] ❌ No command detected - treating as general chat");
             return action;
         }
 
-        private string ExtractSubject(string input)
-        {
-            // Simple subject extraction
-            string[] stopWords = { "add", "task", "remind", "reminder", "me", "to", "about", "for", "of", "a", "new" };
-            string[] words = input.Split(' ');
-
-            // Find words that are not stop words
-            List<string> subjectWords = new List<string>();
-            foreach (string word in words)
-            {
-                if (!stopWords.Contains(word.ToLower()) && word.Length > 2)
-                {
-                    subjectWords.Add(word);
-                }
-            }
-
-            // Look for common cybersecurity topics
-            string fullInput = input.ToLower();
-            if (fullInput.Contains("password") || fullInput.Contains("2fa") || fullInput.Contains("authentication"))
-                return "Password Security";
-            if (fullInput.Contains("phish") || fullInput.Contains("scam"))
-                return "Phishing Protection";
-            if (fullInput.Contains("brows") || fullInput.Contains("wifi"))
-                return "Safe Browsing";
-            if (fullInput.Contains("privacy"))
-                return "Privacy Protection";
-
-            return subjectWords.Count > 0 ? string.Join(" ", subjectWords.Take(4)) : "Cybersecurity task";
-        }
-
-        private DateTime? ExtractDate(string input)
+        private string ExtractSubjectSimple(string input)
         {
             string lowerInput = input.ToLower();
 
-            // Check for "tomorrow"
+            // Remove common command prefixes
+            string[] prefixes = {
+                "add task ", "new task ", "create task ", "add a task ",
+                "remind me ", "reminder ", "complete ", "done ",
+                "delete task ", "remove task ", "view tasks ", "list tasks ", "show tasks "
+            };
+
+            string remaining = input;
+
+            foreach (string prefix in prefixes)
+            {
+                if (lowerInput.StartsWith(prefix))
+                {
+                    remaining = input.Substring(prefix.Length).Trim();
+                    break;
+                }
+                else if (lowerInput.Contains(prefix))
+                {
+                    int index = lowerInput.IndexOf(prefix);
+                    remaining = input.Substring(index + prefix.Length).Trim();
+                    break;
+                }
+            }
+
+            // Remove date-related words
+            string[] dateWords = { "tomorrow", "today", "in ", " days", " day", " week", " weeks", " month", " next week" };
+            foreach (string dateWord in dateWords)
+            {
+                int index = remaining.ToLower().IndexOf(dateWord);
+                if (index >= 0)
+                {
+                    remaining = remaining.Substring(0, index).Trim();
+                }
+            }
+
+            // If we have something left, return it
+            if (!string.IsNullOrEmpty(remaining))
+            {
+                return remaining;
+            }
+
+            return "Cybersecurity Task";
+        }
+
+        private DateTime? ExtractDateSimple(string input)
+        {
+            string lowerInput = input.ToLower();
+
             if (lowerInput.Contains("tomorrow"))
                 return DateTime.Now.AddDays(1);
+
+            if (lowerInput.Contains("today"))
+                return DateTime.Now;
+
+            if (lowerInput.Contains("next week"))
+                return DateTime.Now.AddDays(7);
 
             // Check for "in X days"
             if (lowerInput.Contains("in ") && lowerInput.Contains(" days"))
@@ -353,7 +397,6 @@ namespace CybersecurityChatbotWPF
                 catch { }
             }
 
-            // Check for "in X day"
             if (lowerInput.Contains("in ") && lowerInput.Contains(" day"))
             {
                 try
@@ -371,32 +414,16 @@ namespace CybersecurityChatbotWPF
                 catch { }
             }
 
-            // Check for specific date format 
-            if (lowerInput.Contains("/") || lowerInput.Contains("-"))
-            {
-                try
-                {
-                    string[] words = input.Split(' ');
-                    foreach (string word in words)
-                    {
-                        DateTime date;
-                        if (DateTime.TryParse(word, out date))
-                            return date;
-                    }
-                }
-                catch { }
-            }
-
-            // Default: 3 days from now
             return DateTime.Now.AddDays(3);
         }
 
         public bool IsCommand(string input)
         {
             string lowerInput = input.ToLower();
-            string[] commands = { "add task", "new task", "create task", "remind", "show task", "list task",
-                          "view task", "complete", "delete task", "remove task", "quiz", "game",
-                          "log", "activity", "what have you done" };
+            string[] commands = { "add task", "new task", "create task", "remind me", "reminder",
+                                  "view tasks", "list tasks", "show tasks", "tasks",
+                                  "complete", "done", "delete task", "remove task",
+                                  "quiz", "game", "log", "activity", "help" };
             return commands.Any(cmd => lowerInput.Contains(cmd));
         }
     }
