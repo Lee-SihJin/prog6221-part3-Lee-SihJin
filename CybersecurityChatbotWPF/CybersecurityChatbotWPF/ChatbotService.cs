@@ -371,7 +371,7 @@ namespace CybersecurityChatbotWPF
                 catch { }
             }
 
-            // Check for specific date format (MM/DD or MM-DD or DD/MM or DD-MM)
+            // Check for specific date format 
             if (lowerInput.Contains("/") || lowerInput.Contains("-"))
             {
                 try

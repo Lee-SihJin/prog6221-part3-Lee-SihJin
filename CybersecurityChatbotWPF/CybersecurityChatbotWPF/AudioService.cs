@@ -71,7 +71,7 @@ namespace CybersecurityChatbotWPF
                 {
                     using (SoundPlayer player = new SoundPlayer(_audioFilePath))
                     {
-                        player.Play(); // Use Play() instead of PlaySync() to not block UI
+                        player.Play(); 
                     }
                     System.Diagnostics.Debug.WriteLine("[Audio] Greeting playing...");
                 }

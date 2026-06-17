@@ -298,7 +298,7 @@
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Border Background="#2D2D2D" CornerRadius="10" Padding="20,15">
                     <StackPanel>
-                        <TextBlock Text="Bot" 
+                        <TextBlock Text="BOT" 
                                    FontSize="30" 
                                    HorizontalAlignment="Center"/>
                         <TextBlock Text="Processing..." 
